@@ -8,9 +8,14 @@ use bevy_ecs::{
     system::{Local, ParamSet, Query, Res, ResMut},
 };
 use bevy_math::{Size, Vec3};
+<<<<<<< Updated upstream
 use bevy_reflect::Reflect;
 use bevy_render::{texture::Image, view::Visibility, RenderWorld};
 use bevy_sprite::{Anchor, ExtractedSprite, ExtractedSprites, TextureAtlas};
+=======
+use bevy_render::{texture::Image, view::Visibility, RenderWorld, color::Color};
+use bevy_sprite::{ExtractedSprite, ExtractedSprites, TextureAtlas};
+>>>>>>> Stashed changes
 use bevy_transform::prelude::{GlobalTransform, Transform};
 use bevy_window::{WindowId, Windows};
 
@@ -111,6 +116,7 @@ pub fn extract_text2d_sprite(
                 extracted_sprites.sprites.push(ExtractedSprite {
                     transform,
                     color,
+                    bg_color: Color::NONE,
                     rect,
                     custom_size: None,
                     image_handle_id: handle.id,

@@ -24,6 +24,7 @@ pub struct TextureAtlas {
 #[derive(Component, Debug, Clone, Reflect)]
 pub struct TextureAtlasSprite {
     pub color: Color,
+    pub bg_color: Color,
     pub index: usize,
     pub flip_x: bool,
     pub flip_y: bool,
@@ -38,6 +39,7 @@ impl Default for TextureAtlasSprite {
         Self {
             index: 0,
             color: Color::WHITE,
+            bg_color: Color::NONE,
             flip_x: false,
             flip_y: false,
             custom_size: None,

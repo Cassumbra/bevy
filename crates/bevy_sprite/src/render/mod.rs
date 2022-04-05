@@ -131,6 +131,15 @@ impl SpecializedRenderPipeline for SpritePipeline {
         let mut shader_defs = Vec::new();
         if key.contains(SpritePipelineKey::COLORED) {
             shader_defs.push("COLORED".to_string());
+<<<<<<< Updated upstream
+=======
+            vertex_buffer_layout.attributes.push(VertexAttribute {
+                format: VertexFormat::Uint32x2,
+                offset: 20,
+                shader_location: 2,
+            });
+            vertex_buffer_layout.array_stride += 8;
+>>>>>>> Stashed changes
         }
 
         RenderPipelineDescriptor {
@@ -175,6 +184,7 @@ impl SpecializedRenderPipeline for SpritePipeline {
 pub struct ExtractedSprite {
     pub transform: GlobalTransform,
     pub color: Color,
+    pub bg_color: Color,
     /// Select an area of the texture
     pub rect: Option<Rect>,
     /// Change the on-screen size of the sprite
@@ -241,6 +251,7 @@ pub fn extract_sprites(
         // PERF: we don't check in this function that the `Image` asset is ready, since it should be in most cases and hashing the handle is expensive
         extracted_sprites.sprites.alloc().init(ExtractedSprite {
             color: sprite.color,
+            bg_color: sprite.bg_color,
             transform: *transform,
             // Use the full texture
             rect: None,
@@ -260,6 +271,7 @@ pub fn extract_sprites(
             let rect = Some(texture_atlas.textures[atlas_sprite.index as usize]);
             extracted_sprites.sprites.alloc().init(ExtractedSprite {
                 color: atlas_sprite.color,
+                bg_color: atlas_sprite.bg_color,
                 transform: *transform,
                 // Select the area in the texture atlas
                 rect,
@@ -286,7 +298,12 @@ struct SpriteVertex {
 struct ColoredSpriteVertex {
     pub position: [f32; 3],
     pub uv: [f32; 2],
+<<<<<<< Updated upstream
     pub color: [f32; 4],
+=======
+    pub color: u32,
+    pub bg_color: u32
+>>>>>>> Stashed changes
 }
 
 pub struct SpriteMeta {
@@ -423,7 +440,7 @@ pub fn queue_sprites(
             for extracted_sprite in extracted_sprites.iter() {
                 let new_batch = SpriteBatch {
                     image_handle_id: extracted_sprite.image_handle_id,
-                    colored: extracted_sprite.color != Color::WHITE,
+                    colored: (extracted_sprite.color != Color::WHITE) || (extracted_sprite.bg_color.a() != 0.0),
                 };
                 if new_batch != current_batch {
                     // Set-up a new possible batch
@@ -501,11 +518,31 @@ pub fn queue_sprites(
 
                 // Store the vertex data and add the item to the render phase
                 if current_batch.colored {
+<<<<<<< Updated upstream
+=======
+                    let bg_color = extracted_sprite.bg_color.as_linear_rgba_f32();
+                    // encode bg_color as a single u32 to save space
+                    let bg_color = (bg_color[0] * 255.0) as u32
+                        | ((bg_color[1] * 255.0) as u32) << 8
+                        | ((bg_color[2] * 255.0) as u32) << 16
+                        | ((bg_color[3] * 255.0) as u32) << 24;
+                    let color = extracted_sprite.color.as_linear_rgba_f32();
+                    // encode color as a single u32 to save space
+                    let color = (color[0] * 255.0) as u32
+                        | ((color[1] * 255.0) as u32) << 8
+                        | ((color[2] * 255.0) as u32) << 16
+                        | ((color[3] * 255.0) as u32) << 24;
+>>>>>>> Stashed changes
                     for i in QUAD_INDICES.iter() {
                         sprite_meta.colored_vertices.push(ColoredSpriteVertex {
                             position: positions[*i],
                             uv: uvs[*i].into(),
+<<<<<<< Updated upstream
                             color: extracted_sprite.color.as_linear_rgba_f32(),
+=======
+                            color,
+                            bg_color,
+>>>>>>> Stashed changes
                         });
                     }
                     let item_start = colored_index;

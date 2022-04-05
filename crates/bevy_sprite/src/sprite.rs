@@ -8,6 +8,8 @@ use bevy_render::color::Color;
 pub struct Sprite {
     /// The sprite's color tint
     pub color: Color,
+    /// The sprite's background color
+    pub bg_color: Color,
     /// Flip the sprite along the X axis
     pub flip_x: bool,
     /// Flip the sprite along the Y axis
