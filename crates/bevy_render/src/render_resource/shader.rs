@@ -161,9 +161,9 @@ impl ProcessedShader {
             source: match self {
                 ProcessedShader::Wgsl(source) => {
                     #[cfg(debug_assertions)]
-                    // This isn't neccessary, but catches errors early during hot reloading of invalid wgsl shaders.
-                    // Eventually, wgpu will have features that will make this unneccessary like compilation info
-                    // or error scopes, but until then parsing the shader twice during development the easiest solution.
+                    // Parse and validate the shader early, so that (e.g. while hot reloading) we can
+                    // display nicely formatted error messages instead of relying on just displaying the error string
+                    // returned by wgpu upon creating the shader module.
                     let _ = self.reflect()?;
 
                     ShaderSource::Wgsl(source.clone())
@@ -408,40 +408,42 @@ impl ShaderProcessor {
                 if scopes.is_empty() {
                     return Err(ProcessShaderError::TooManyEndIfs);
                 }
-            } else if let Some(cap) = SHADER_IMPORT_PROCESSOR
-                .import_asset_path_regex
-                .captures(line)
-            {
-                let import = ShaderImport::AssetPath(cap.get(1).unwrap().as_str().to_string());
-                self.apply_import(
-                    import_handles,
-                    shaders,
-                    &import,
-                    shader,
-                    shader_defs,
-                    &mut final_string,
-                )?;
-            } else if let Some(cap) = SHADER_IMPORT_PROCESSOR
-                .import_custom_path_regex
-                .captures(line)
-            {
-                let import = ShaderImport::Custom(cap.get(1).unwrap().as_str().to_string());
-                self.apply_import(
-                    import_handles,
-                    shaders,
-                    &import,
-                    shader,
-                    shader_defs,
-                    &mut final_string,
-                )?;
-            } else if SHADER_IMPORT_PROCESSOR
-                .define_import_path_regex
-                .is_match(line)
-            {
-                // ignore import path lines
             } else if *scopes.last().unwrap() {
-                final_string.push_str(line);
-                final_string.push('\n');
+                if let Some(cap) = SHADER_IMPORT_PROCESSOR
+                    .import_asset_path_regex
+                    .captures(line)
+                {
+                    let import = ShaderImport::AssetPath(cap.get(1).unwrap().as_str().to_string());
+                    self.apply_import(
+                        import_handles,
+                        shaders,
+                        &import,
+                        shader,
+                        shader_defs,
+                        &mut final_string,
+                    )?;
+                } else if let Some(cap) = SHADER_IMPORT_PROCESSOR
+                    .import_custom_path_regex
+                    .captures(line)
+                {
+                    let import = ShaderImport::Custom(cap.get(1).unwrap().as_str().to_string());
+                    self.apply_import(
+                        import_handles,
+                        shaders,
+                        &import,
+                        shader,
+                        shader_defs,
+                        &mut final_string,
+                    )?;
+                } else if SHADER_IMPORT_PROCESSOR
+                    .define_import_path_regex
+                    .is_match(line)
+                {
+                    // ignore import path lines
+                } else {
+                    final_string.push_str(line);
+                    final_string.push('\n');
+                }
             }
         }
 
@@ -1228,6 +1230,69 @@ fn in_main() { }
                 &shaders,
                 &import_handles,
             )
+            .unwrap();
+        assert_eq!(result.get_wgsl_source().unwrap(), EXPECTED);
+    }
+
+    #[test]
+    fn process_import_in_ifdef() {
+        #[rustfmt::skip]
+        const BAR: &str = r"
+fn bar() { }
+";
+        #[rustfmt::skip]
+        const BAZ: &str = r"
+fn baz() { }
+";
+        #[rustfmt::skip]
+        const INPUT: &str = r"
+#ifdef FOO
+    #import BAR
+#else
+    #import BAZ
+#endif
+";
+        #[rustfmt::skip]
+        const EXPECTED_FOO: &str = r"
+
+fn bar() { }
+";
+        #[rustfmt::skip]
+        const EXPECTED: &str = r"
+
+fn baz() { }
+";
+        let processor = ShaderProcessor::default();
+        let mut shaders = HashMap::default();
+        let mut import_handles = HashMap::default();
+        {
+            let bar_handle = Handle::<Shader>::default();
+            shaders.insert(bar_handle.clone_weak(), Shader::from_wgsl(BAR));
+            import_handles.insert(
+                ShaderImport::Custom("BAR".to_string()),
+                bar_handle.clone_weak(),
+            );
+        }
+        {
+            let baz_handle = HandleUntyped::weak_from_u64(Shader::TYPE_UUID, 1).typed();
+            shaders.insert(baz_handle.clone_weak(), Shader::from_wgsl(BAZ));
+            import_handles.insert(
+                ShaderImport::Custom("BAZ".to_string()),
+                baz_handle.clone_weak(),
+            );
+        }
+        let result = processor
+            .process(
+                &Shader::from_wgsl(INPUT),
+                &["FOO".to_string()],
+                &shaders,
+                &import_handles,
+            )
+            .unwrap();
+        assert_eq!(result.get_wgsl_source().unwrap(), EXPECTED_FOO);
+
+        let result = processor
+            .process(&Shader::from_wgsl(INPUT), &[], &shaders, &import_handles)
             .unwrap();
         assert_eq!(result.get_wgsl_source().unwrap(), EXPECTED);
     }
